@@ -1,0 +1,83 @@
+#!/bin/bash
+
+# Git post-rewrite script to generate list of LFS objects that are being squashed
+# Will require manual deletion from LFS server
+
+echo "Starting on post rewrite..."
+
+echo "Arguments $0 $1"
+
+OUTPUT_FILE="delete_files"
+
+# Parse the blob
+parse_blob(){
+	echo "Parsing blob $1..."
+	(git cat-file blob $1 || true) |\
+		grep "oid sha256:" |\
+		sed 's/oid sha256://g' |\
+		sed -E 's/^(.{2})(.{2})(.*)/rm -rf \1*\2*\3/g' |\
+		sed 's/*/\//g' >> $OUTPUT_FILE
+
+}
+
+# List all objects for commit
+list_objects(){
+	echo "Listing all objects for commit..."
+	
+	echo "Starting commit: $1"
+	echo "Ending commit: $2"
+	
+	git rev-list --objects $1...$2 | awk ' { print $1 } '
+}
+
+list_branch(){
+	echo "Listing all objects for branch..."
+	
+	echo "Branch: $1"
+	
+	git rev-list --objects $1 | awk ' { print $1 } '
+}
+
+# WIP - Check if we're reading in from command line manually or from git hooks.  THIS IS NOT FINISHED
+
+if [ "$1" = "rebase" ]; then
+	echo "Starting rebase..."
+	
+	while read -r oldname arg newname;
+	do
+		
+		# WIP - Check to see who the first commit seen is that's a squash
+	
+		echo "Oldname: $oldname"
+		echo "arg: $arg"
+		echo "New name: $newname"
+		
+		# WIP - Check to see who the last commit seen is that's a squash
+		
+		# WIP - If we're feeling fancy, store a list of all commits in between that are not squash
+	done
+fi
+
+if [ "$1" = "manual" ]; then
+	echo "Starting manual..."
+	OUTPUT=$(list_objects $2 $3)
+	
+	echo "Output: $OUTPUT"
+	
+	for value in $OUTPUT; do
+		parse_blob $value
+	done
+fi
+
+if [ "$1" = "branch" ]; then
+	echo "Starting manual listing on a branch..."
+	OUTPUT=$(list_branch $2)
+	
+	echo "Output: $OUTPUT"
+	
+	for value in $OUTPUT; do
+		parse_blob $value
+	done
+fi
+
+echo "Done"
